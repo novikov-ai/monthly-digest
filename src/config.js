@@ -21,6 +21,9 @@ const CONFIG = {
    * @param {string} monthName  — e.g. "Апрель"
    * @param {number} year       — e.g. 2026
    */
+  /** Heading shown above the calendar (in the output and in the PNG). */
+  calendarTitle: (monthName, year) => `Шахматные активности на ${monthName} ${year}`,
+
   digestHeader: (monthName, year) => `♟️ *Шахматный дайджест — ${monthName} ${year}*`,
 
   /**
@@ -78,6 +81,12 @@ const CONFIG = {
   ],
 
   // ── Storage ──────────────────────────────────────────────────────────────────
+
+  /**
+   * Default description shown below the calendar.
+   * The coordinator can overwrite it per-month in the UI.
+   */
+  defaultCalendarDescription: '',
 
   /**
    * localStorage key.  Change this if you run multiple independent digest

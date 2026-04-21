@@ -79,6 +79,16 @@
     </div>
   </div>
 
+  <!-- CALENDAR DESCRIPTION -->
+  <div class="section">
+    <div class="section-title">
+      Описание
+      <span class="badge">отображается под календарём</span>
+    </div>
+    <textarea id="cal-description" rows="3" placeholder="Занятия проходят онлайн. Ссылки на встречи приходят в день события." oninput="updDescription(this.value)"></textarea>
+    <p class="hint">Копируется на следующий месяц вместе с правилами.</p>
+  </div>
+
   <!-- ACTION ROW -->
   <div class="btn-row" style="margin-top:4px">
     <button class="gen-btn" onclick="generate()">Сгенерировать дайджест</button>

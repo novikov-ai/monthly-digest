@@ -19,6 +19,9 @@ let rules         = []; // { id, weekday, time, name, type }
 let lastWeekRules = []; // { id, weekday, time, name, type }
 let events        = []; // { id, date, time, name, type, link }
 
+// Per-month free-text description shown below the calendar
+let calendarDescription = '';
+
 // Last generated output — used by copyCalendarPng
 let lastGeneratedEvents = null;
 let lastGeneratedYM     = null;
@@ -34,6 +37,7 @@ function saveMonth(ym) {
     rules:         rules.map(r => ({...r})),
     lastWeekRules: lastWeekRules.map(r => ({...r})),
     events:        events.map(e => ({...e})),
+    description:   calendarDescription,
   };
   saveAll(all);
   flashSaved();
@@ -43,13 +47,15 @@ function loadMonthData(ym) {
   const all = loadAll();
   const d   = all[ym];
   if (d) {
-    rules         = d.rules         || [];
-    lastWeekRules = d.lastWeekRules || [];
-    events        = d.events        || [];
+    rules               = d.rules         || [];
+    lastWeekRules       = d.lastWeekRules || [];
+    events              = d.events        || [];
+    calendarDescription = d.description  || '';
   } else {
-    rules         = CONFIG.defaultRules.map((r, i)         => ({...r, id: i + 1}));
-    lastWeekRules = CONFIG.defaultLastWeekRules.map((r, i) => ({...r, id: i + 1}));
-    events        = [];
+    rules               = CONFIG.defaultRules.map((r, i)         => ({...r, id: i + 1}));
+    lastWeekRules       = CONFIG.defaultLastWeekRules.map((r, i) => ({...r, id: i + 1}));
+    events              = [];
+    calendarDescription = CONFIG.defaultCalendarDescription || '';
   }
   nextRuleId = Math.max(0, ...rules.map(r => r.id)) + 1;
   nextLWId   = Math.max(0, ...lastWeekRules.map(r => r.id)) + 1;
@@ -85,7 +91,10 @@ function renderAll() {
   renderRules();
   renderLastWeek();
   renderEvents();
+  document.getElementById('cal-description').value = calendarDescription;
 }
+
+function updDescription(v) { calendarDescription = v; persist(); }
 
 // ── Shared helpers ───────────────────────────────────────────────────────────
 
@@ -244,8 +253,12 @@ function renderCalendar(yr, mo, allEvents) {
   const byDay    = {};
   allEvents.forEach(e => { const d = +e.date.split('-')[2]; (byDay[d] = byDay[d] || []).push(e); });
 
-  const td = new Date();
-  let h = `<div class="cal-wrap"><div class="cal-title">${MONTHS_RU[mo-1]} ${yr}</div><div class="calendar-grid">`;
+  const td    = new Date();
+  const title = CONFIG.calendarTitle(MONTHS_RU[mo - 1], yr);
+  const desc  = calendarDescription.trim();
+  let h = `<div class="cal-outer-wrap">` +
+          `<div class="cal-outer-title">${esc(title)}</div>` +
+          `<div class="cal-wrap"><div class="calendar-grid">`;
   DAYS_CAL.forEach(d => h += `<div class="cal-header">${d}</div>`);
   for (let i = 0; i < offset; i++) h += `<div class="cal-day empty"></div>`;
   for (let d = 1; d <= lastDay; d++) {
@@ -259,22 +272,26 @@ function renderCalendar(yr, mo, allEvents) {
     h += `</div>`;
   }
   h += `</div></div>`;
-  document.getElementById('tab-cal').innerHTML = h +
-    `<button class="copy-txt-btn copy-png-btn" onclick="copyCalendarPng(this)">Скопировать PNG</button>`;
+  const descHtml = desc
+    ? `<div class="cal-outer-desc">${esc(desc).replace(/\n/g, '<br>')}</div>`
+    : '';
+  document.getElementById('tab-cal').innerHTML = h + descHtml +
+    `</div>` +
+    `<button class="copy-txt-btn copy-png-btn" style="margin-top:12px" onclick="copyCalendarPng(this)">Скопировать PNG</button>`;
 }
 
 // ── Canvas-based PNG export ───────────────────────────────────────────────────
 
 // Chip colours for canvas rendering — must stay in sync with style.css
 const CHIP_CANVAS_COLORS = {
-  'chip-tasks':      { bg: '#E6F1FB', fg: '#185FA5' },
-  'chip-strategy':   { bg: '#EEEDFE', fg: '#3C3489' },
-  'chip-gametime':   { bg: '#EAF3DE', fg: '#3B6D11' },
-  'chip-lesson':     { bg: '#E1F5EE', fg: '#0F6E56' },
-  'chip-tournament': { bg: '#FAEEDA', fg: '#854F0B' },
+  'chip-tasks':      { bg: 'rgba(88,86,214,0.35)',  fg: '#b8b6ff' },
+  'chip-strategy':   { bg: 'rgba(50,173,230,0.32)', fg: '#82d9f5' },
+  'chip-gametime':   { bg: 'rgba(255,149,0,0.32)',  fg: '#ffc05c' },
+  'chip-lesson':     { bg: 'rgba(48,209,88,0.30)',  fg: '#7de8a0' },
+  'chip-tournament': { bg: 'rgba(255,59,48,0.32)',  fg: '#ff9490' },
 };
 
-function roundRect(ctx, x, y, w, h, r, fill, stroke) {
+function roundRectPath(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
   ctx.lineTo(x + w - r, y);
@@ -286,6 +303,10 @@ function roundRect(ctx, x, y, w, h, r, fill, stroke) {
   ctx.lineTo(x, y + r);
   ctx.quadraticCurveTo(x, y, x + r, y);
   ctx.closePath();
+}
+
+function roundRect(ctx, x, y, w, h, r, fill, stroke) {
+  roundRectPath(ctx, x, y, w, h, r);
   if (fill)   { ctx.fillStyle   = fill;   ctx.fill(); }
   if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
 }
@@ -308,27 +329,31 @@ function wrapText(ctx, text, maxWidth) {
   return lines.length ? lines : [''];
 }
 
-function buildCalendarCanvas(ym, allEvents, calWrapWidth) {
+function buildCalendarCanvas(ym, allEvents, calWrapWidth, description) {
   const [yr, mo] = ym.split('-').map(Number);
   const dpr      = window.devicePixelRatio || 1;
 
   // Derive cell width from the actual rendered calendar so PNG matches screen.
-  // .cal-wrap has padding 1.25rem (20px) each side; grid gap is 3px.
-  const WRAP_PAD = 20;
-  const GAP      = 3;
+  // .cal-wrap has padding 24px each side; grid gap is 5px.
+  const WRAP_PAD = 24;
+  const GAP      = 5;
   const CELL_W   = Math.floor((calWrapWidth - WRAP_PAD * 2 - GAP * 6) / 7);
   const GRID_W   = CELL_W * 7 + GAP * 6;
 
-  const PAD       = 24;
-  const HDR_H     = 44;  // month title row
-  const DHEAD     = 24;  // weekday labels row
+  const CARD_BG   = '#1c1c1e';
+  const CELL_BG   = 'rgba(255,255,255,0.05)';
+  const PAD       = 32;
+  const CARD_PAD  = 24;  // inner padding of the dark card
+  const TITLE_H   = 52;  // outer title height
+  const HDR_H     = 36;  // weekday header row inside card
+  const DHEAD     = 0;   // merged into HDR_H
   const FONT      = '"Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif';
   const CHIP_FONT = `10px ${FONT}`;
   const TEXT_W    = CELL_W - 10; // usable text width inside chip
   const LINE_H    = 13;          // px per text line inside chip
   const CHIP_VPAD = 3;           // top/bottom padding inside chip
   const CHIP_GAP  = 2;           // gap between chips
-  const DAY_NUM_H = 18;          // space reserved for the day number
+  const DAY_NUM_H = 32;          // space reserved for the day number (larger in dark design)
 
   const firstDow = new Date(yr, mo - 1, 1).getDay();
   const offset   = (firstDow === 0 ? 7 : firstDow) - 1;
@@ -371,8 +396,20 @@ function buildCalendarCanvas(ym, allEvents, calWrapWidth) {
   const rowY = rowH.reduce((acc, h) => { acc.push((acc.at(-1) || 0) + h + GAP); return acc; }, [0]);
 
   const gridH = rowY.at(-1) - GAP; // total grid height without trailing gap
-  const TW    = PAD + GRID_W + PAD;
-  const TH    = PAD + HDR_H + DHEAD + gridH + PAD;
+
+  // Description block height (pre-measured)
+  const DESC_FONT   = `13px ${FONT}`;
+  const DESC_LINE_H = 20;
+  const DESC_PAD    = 12;
+  const descLines   = description
+    ? (() => { measureCtx.font = DESC_FONT; return wrapText(measureCtx, description, GRID_W - DESC_PAD * 2); })()
+    : [];
+  const descBlockH  = descLines.length ? descLines.length * DESC_LINE_H + DESC_PAD * 2 + 8 : 0;
+
+  const CARD_W = GRID_W + CARD_PAD * 2;
+  const CARD_H = HDR_H + gridH + CARD_PAD;
+  const TW = PAD + CARD_W + PAD;
+  const TH = PAD + TITLE_H + CARD_H + descBlockH + PAD;
 
   // ── Draw ──────────────────────────────────────────────────────────────────
   const canvas = document.createElement('canvas');
@@ -381,27 +418,34 @@ function buildCalendarCanvas(ym, allEvents, calWrapWidth) {
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
 
-  // Outer background
-  ctx.fillStyle = '#f5f5f0';
+  // Outer background — near-white Apple grey
+  ctx.fillStyle = '#f5f5f7';
   ctx.fillRect(0, 0, TW, TH);
 
-  // Calendar card
-  roundRect(ctx, PAD, PAD, GRID_W, HDR_H + DHEAD + gridH, 12, '#ffffff', '#e5e5e0');
-
-  // Month title
-  ctx.font         = `500 16px ${FONT}`;
-  ctx.fillStyle    = '#1a1a1a';
-  ctx.textAlign    = 'center';
+  // Outer title — ultra-light, large
+  ctx.font         = `200 32px ${FONT}`;
+  ctx.fillStyle    = '#1d1d1f';
+  ctx.textAlign    = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText(`${MONTHS_RU[mo - 1]} ${yr}`, PAD + GRID_W / 2, PAD + HDR_H / 2);
+  ctx.fillText(CONFIG.calendarTitle(MONTHS_RU[mo - 1], yr), PAD, PAD + TITLE_H / 2);
 
-  // Weekday headers
-  ctx.font         = `500 11px ${FONT}`;
-  ctx.fillStyle    = '#888';
+  const cardY = PAD + TITLE_H;
+
+  // Dark card with dramatic shadow
+  ctx.shadowColor   = 'rgba(0,0,0,0.28)';
+  ctx.shadowBlur    = 64;
+  ctx.shadowOffsetY = 12;
+  roundRect(ctx, PAD, cardY, CARD_W, CARD_H, 24, CARD_BG, null);
+  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+
+  // Weekday headers inside card — dim white, uppercase
+  ctx.font         = `700 10px ${FONT}`;
+  ctx.fillStyle    = 'rgba(255,255,255,0.28)';
   ctx.textBaseline = 'middle';
   DAYS_CAL.forEach((label, i) => {
     ctx.textAlign = 'center';
-    ctx.fillText(label, PAD + i * (CELL_W + GAP) + CELL_W / 2, PAD + HDR_H + DHEAD / 2);
+    const hx = PAD + CARD_PAD + i * (CELL_W + GAP) + CELL_W / 2;
+    ctx.fillText(label.toUpperCase(), hx, cardY + HDR_H / 2);
   });
 
   // Day cells
@@ -411,44 +455,78 @@ function buildCalendarCanvas(ym, allEvents, calWrapWidth) {
     const idx     = d - 1 + offset;
     const col     = idx % 7;
     const ri      = Math.floor(idx / 7);
-    const x       = PAD + col * (CELL_W + GAP);
-    const y       = PAD + HDR_H + DHEAD + rowY[ri];
+    const x       = PAD + CARD_PAD + col * (CELL_W + GAP);
+    const y       = cardY + HDR_H + rowY[ri];
     const CELL_H  = rowH[ri];
     const isToday = today.getFullYear() === yr && today.getMonth() === mo - 1 && today.getDate() === d;
 
-    roundRect(ctx, x + 1, y + 1, CELL_W - 2, CELL_H - 2, 5,
-      isToday ? '#f0f7ff' : '#fafaf8',
-      isToday ? '#378ADD' : '#eeeeea');
+    // Cell background — translucent on dark card
+    if (isToday) {
+      // Today: warm orange glow + inset ring
+      roundRect(ctx, x + 1, y + 1, CELL_W - 2, CELL_H - 2, 14, 'rgba(255,149,0,0.15)', null);
+      ctx.save();
+      roundRectPath(ctx, x + 1.75, y + 1.75, CELL_W - 3.5, CELL_H - 3.5, 13);
+      ctx.strokeStyle = 'rgba(255,149,0,0.55)';
+      ctx.lineWidth   = 1.5;
+      ctx.stroke();
+      ctx.restore();
+    } else {
+      roundRect(ctx, x + 1, y + 1, CELL_W - 2, CELL_H - 2, 14, CELL_BG, null);
+    }
 
-    // Day number
-    ctx.font         = `500 11px ${FONT}`;
-    ctx.fillStyle    = isToday ? '#378ADD' : '#aaa';
-    ctx.textAlign    = 'left';
-    ctx.textBaseline = 'top';
-    ctx.fillText(String(d), x + 5, y + 5);
+    // Day number — filled orange circle on today
+    const NUM_R = 13;
+    const nx    = x + 8 + NUM_R;
+    const ny    = y + 8 + NUM_R;
+    if (isToday) {
+      ctx.beginPath();
+      ctx.arc(nx, ny, NUM_R, 0, Math.PI * 2);
+      ctx.fillStyle = '#FF9500';
+      ctx.fill();
+    }
+    ctx.font         = `${isToday ? 700 : 600} 14px ${FONT}`;
+    ctx.fillStyle    = isToday ? '#fff' : 'rgba(255,255,255,0.88)';
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(d), nx, ny);
 
     // Chips — track running Y within cell
     let chipTop = y + DAY_NUM_H;
     for (const e of (byDay[d] || [])) {
       const t      = CONFIG.eventTypes[e.type] || CONFIG.eventTypes[Object.keys(CONFIG.eventTypes)[0]];
-      const colors = CHIP_CANVAS_COLORS[t.chipClass] || { bg: '#f0f0f0', fg: '#555' };
+      const colors = CHIP_CANVAS_COLORS[t.chipClass] || { accent: '#888', bg: '#f5f5f5' };
       const label  = `${timeRange(e.time, e.duration)} ${e.name || t.label}`;
 
       ctx.font = CHIP_FONT;
-      const lines  = wrapText(ctx, label, TEXT_W);
-      const chipH  = lines.length * LINE_H + CHIP_VPAD * 2;
+      const lines = wrapText(ctx, label, TEXT_W - 4); // -4 for left accent bar
+      const chipH = lines.length * LINE_H + CHIP_VPAD * 2;
 
-      roundRect(ctx, x + 3, chipTop, CELL_W - 6, chipH, 3, colors.bg, null);
+      // Chip: vivid translucent fill, light text — glowing on dark
+      roundRect(ctx, x + 4, chipTop, CELL_W - 8, chipH, 6, colors.bg, null);
 
+      ctx.font         = CHIP_FONT;
       ctx.fillStyle    = colors.fg;
       ctx.textAlign    = 'left';
       ctx.textBaseline = 'top';
       lines.forEach((ln, li) => {
-        ctx.fillText(ln, x + 5, chipTop + CHIP_VPAD + li * LINE_H);
+        ctx.fillText(ln, x + 8, chipTop + CHIP_VPAD + li * LINE_H);
       });
 
       chipTop += chipH + CHIP_GAP;
     }
+  }
+
+  // Description block below the card
+  if (descLines.length) {
+    const descY = cardY + CARD_H + 12;
+    roundRect(ctx, PAD, descY, CARD_W, descBlockH - 12, 14, 'rgba(0,0,0,0.05)', null);
+    ctx.font         = DESC_FONT;
+    ctx.fillStyle    = '#6e6e73';
+    ctx.textAlign    = 'left';
+    ctx.textBaseline = 'top';
+    descLines.forEach((ln, li) => {
+      ctx.fillText(ln, PAD + DESC_PAD, descY + DESC_PAD + li * DESC_LINE_H);
+    });
   }
 
   return canvas;
@@ -461,7 +539,7 @@ async function copyCalendarPng(btn) {
   btn.textContent = 'Готовлю…';
   btn.disabled = true;
   try {
-    const canvas = buildCalendarCanvas(lastGeneratedYM, lastGeneratedEvents, calWrap.getBoundingClientRect().width);
+    const canvas = buildCalendarCanvas(lastGeneratedYM, lastGeneratedEvents, calWrap.getBoundingClientRect().width, calendarDescription.trim());
     const blob   = await new Promise((res, rej) =>
       canvas.toBlob(b => b ? res(b) : rej(new Error('toBlob returned null')), 'image/png')
     );
@@ -471,7 +549,7 @@ async function copyCalendarPng(btn) {
     // Fallback: download the file
     console.warn('Clipboard write failed, falling back to download:', err);
     try {
-      const canvas = buildCalendarCanvas(lastGeneratedYM, lastGeneratedEvents, calWrap.getBoundingClientRect().width);
+      const canvas = buildCalendarCanvas(lastGeneratedYM, lastGeneratedEvents, calWrap.getBoundingClientRect().width, calendarDescription.trim());
       const a      = Object.assign(document.createElement('a'), {
         href:     canvas.toDataURL('image/png'),
         download: `digest-${lastGeneratedYM}.png`,
@@ -540,7 +618,7 @@ function copyToNextMonth() {
   const next = new Date(yr, mo, 1);
   const nYM  = `${next.getFullYear()}-${String(next.getMonth()+1).padStart(2,'0')}`;
   const all  = loadAll();
-  all[nYM] = { rules: rules.map(r => ({...r})), lastWeekRules: lastWeekRules.map(r => ({...r})), events: [] };
+  all[nYM] = { rules: rules.map(r => ({...r})), lastWeekRules: lastWeekRules.map(r => ({...r})), events: [], description: calendarDescription };
   saveAll(all);
   const c = document.getElementById('copy-confirm');
   c.style.display = 'inline';
