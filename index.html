@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Шахматный дайджест</title>
+<link rel="stylesheet" href="src/style.css" />
+</head>
+<body>
+<div class="container">
+  <h1 id="app-title"></h1>
+  <p class="subtitle" id="app-subtitle"></p>
+
+  <div class="top-bar">
+    <input class="month-input" type="month" id="month-pick" onchange="onMonthChange()" />
+    <span class="saved-badge" id="saved-badge">Сохранено ✓</span>
+  </div>
+
+  <!-- RECURRING RULES -->
+  <div class="section">
+    <div class="section-title">
+      Регулярные занятия
+      <span class="badge">повторяются каждую неделю</span>
+    </div>
+    <div class="col-labels-rule">
+      <div class="col-label">День недели</div>
+      <div class="col-label">Начало</div>
+      <div class="col-label">мин</div>
+      <div class="col-label">Название</div>
+      <div class="col-label">Тип</div>
+      <div class="col-label"></div>
+    </div>
+    <div id="rules-list"></div>
+    <div class="btn-row">
+      <button class="add-btn" onclick="addRule()">+ Добавить регулярное</button>
+    </div>
+    <p class="hint">Эти события автоматически появятся на каждой неделе выбранного месяца.</p>
+  </div>
+
+  <!-- LAST-WEEKDAY RULES -->
+  <div class="section">
+    <div class="section-title">
+      Событие в последний день недели месяца
+      <span class="badge">напр. «последняя среда»</span>
+    </div>
+    <div class="col-labels-rule">
+      <div class="col-label">День недели</div>
+      <div class="col-label">Начало</div>
+      <div class="col-label">мин</div>
+      <div class="col-label">Название</div>
+      <div class="col-label">Тип</div>
+      <div class="col-label"></div>
+    </div>
+    <div id="lastweek-list"></div>
+    <div class="btn-row">
+      <button class="add-btn" onclick="addLastWeek()">+ Добавить</button>
+    </div>
+    <p class="hint">Заменяет обычное регулярное занятие в тот же день — не дублируется.</p>
+  </div>
+
+  <!-- ONE-OFF EVENTS -->
+  <div class="section">
+    <div class="section-title">
+      Разовые события
+      <span class="badge">конкретные даты</span>
+    </div>
+    <div class="col-labels-ev">
+      <div class="col-label">Дата</div>
+      <div class="col-label">Начало</div>
+      <div class="col-label">мин</div>
+      <div class="col-label">Название</div>
+      <div class="col-label">Тип</div>
+      <div class="col-label">Ссылка Meet / Zoom</div>
+      <div class="col-label"></div>
+    </div>
+    <div id="events-list"></div>
+    <div class="btn-row">
+      <button class="add-btn" onclick="addEvent()">+ Добавить разовое</button>
+    </div>
+  </div>
+
+  <!-- ACTION ROW -->
+  <div class="btn-row" style="margin-top:4px">
+    <button class="gen-btn" onclick="generate()">Сгенерировать дайджест</button>
+    <div class="divider"></div>
+    <button class="copy-month-btn" onclick="copyToNextMonth()">Копировать настройки на следующий месяц →</button>
+    <span class="copy-confirm" id="copy-confirm" style="display:none">Готово, переключите месяц ✓</span>
+  </div>
+
+  <div class="output" id="output" style="display:none">
+    <div class="output-tabs">
+      <button class="tab active" onclick="switchTab('cal')">Календарь</button>
+      <button class="tab" onclick="switchTab('tg')">Telegram</button>
+      <button class="tab" onclick="switchTab('slack')">Slack</button>
+    </div>
+    <div id="tab-cal"></div>
+    <div id="tab-tg"    style="display:none"></div>
+    <div id="tab-slack" style="display:none"></div>
+  </div>
+</div>
+
+<script src="src/config.js"></script>
+<script src="src/app.js"></script>
+</body>
+</html>

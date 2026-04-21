@@ -1,0 +1,85 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f0; color: #1a1a1a; min-height: 100vh; padding: 2rem 1rem; }
+.container { max-width: 960px; margin: 0 auto; }
+h1 { font-size: 22px; font-weight: 500; margin-bottom: 6px; }
+.subtitle { font-size: 13px; color: #888; margin-bottom: 24px; }
+
+/* Month bar */
+.top-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; flex-wrap: wrap; }
+.month-input { font-size: 14px; font-weight: 500; padding: 7px 10px; border: 1px solid #ccc; border-radius: 8px; background: #fff; color: #1a1a1a; }
+.saved-badge { font-size: 11px; color: #3B6D11; background: #EAF3DE; padding: 3px 8px; border-radius: 4px; opacity: 0; transition: opacity .3s; }
+.saved-badge.show { opacity: 1; }
+
+/* Sections */
+.section { background: #fff; border: 1px solid #e5e5e0; border-radius: 12px; padding: 1.25rem; margin-bottom: 16px; }
+.section-title { font-size: 14px; font-weight: 500; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+.section-title .badge { font-size: 11px; font-weight: 400; padding: 2px 7px; border-radius: 4px; background: #f0f0f0; color: #666; }
+
+/* Recurring rules */
+.rule-row { display: grid; grid-template-columns: 110px 70px 65px minmax(0, 1fr) 130px 34px; gap: 6px; align-items: start; margin-bottom: 7px; }
+.rule-row.last-week-row { grid-template-columns: 110px 70px 65px minmax(0, 1fr) 130px 34px; }
+select, input[type="time"], input[type="text"], input[type="url"], input[type="date"], input[type="number"] {
+  font-size: 13px; padding: 5px 8px; height: 32px;
+  border: 1px solid #ccc; border-radius: 7px;
+  background: #fff; color: #1a1a1a; width: 100%; min-width: 0;
+}
+input[type="number"] { -moz-appearance: textfield; }
+input[type="number"]::-webkit-inner-spin-button { opacity: .4; }
+select:focus, input:focus { outline: none; border-color: #888; }
+.col-labels-rule { display: grid; grid-template-columns: 110px 70px 65px minmax(0, 1fr) 130px 34px; gap: 6px; margin-bottom: 4px; }
+
+/* One-off events */
+.col-labels-ev { display: grid; grid-template-columns: 120px 70px 65px minmax(0, 1fr) 130px minmax(0, 1fr) 34px; gap: 6px; margin-bottom: 4px; }
+.event-row { display: grid; grid-template-columns: 120px 70px 65px minmax(0, 1fr) 130px minmax(0, 1fr) 34px; gap: 6px; align-items: start; margin-bottom: 7px; }
+.col-label { font-size: 11px; color: #888; padding-left: 2px; }
+
+.del-btn { width: 32px; height: 32px; border: 1px solid #ccc; border-radius: 7px; background: none; color: #aaa; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.del-btn:hover { background: #fef2f2; color: #c0392b; border-color: #f5c6c6; }
+
+/* Buttons */
+.btn-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; align-items: center; }
+.add-btn { padding: 6px 14px; border: 1px solid #ccc; border-radius: 8px; background: #fff; cursor: pointer; font-size: 13px; color: #333; }
+.add-btn:hover { background: #f5f5f0; }
+.gen-btn { padding: 7px 20px; border: 1px solid #1a1a1a; border-radius: 8px; background: #1a1a1a; color: #fff; cursor: pointer; font-size: 13px; font-weight: 500; }
+.gen-btn:hover { opacity: .85; }
+.copy-month-btn { padding: 6px 14px; border: 1px solid #ccc; border-radius: 8px; background: #fff; cursor: pointer; font-size: 13px; color: #333; }
+.copy-month-btn:hover { background: #f5f5f0; }
+.divider { width: 1px; height: 22px; background: #ddd; }
+.copy-confirm { font-size: 12px; color: #3B6D11; }
+
+/* Output */
+.output { margin-top: 28px; }
+.output-tabs { display: flex; gap: 4px; margin-bottom: 14px; flex-wrap: wrap; }
+.tab { padding: 6px 16px; border: 1px solid #ccc; border-radius: 8px; background: #fff; cursor: pointer; font-size: 13px; color: #666; }
+.tab.active { background: #f0f0f0; color: #1a1a1a; font-weight: 500; }
+
+/* Calendar */
+.cal-wrap { background: #fff; border: 1px solid #e5e5e0; border-radius: 12px; padding: 1.25rem; }
+.cal-title { text-align: center; font-size: 16px; font-weight: 500; margin-bottom: 12px; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.cal-header { text-align: center; font-size: 11px; color: #888; padding: 4px 0; font-weight: 500; }
+.cal-day { min-height: 66px; border: 1px solid #eeeeea; border-radius: 5px; padding: 4px; background: #fafaf8; }
+.cal-day.empty { border-color: transparent; background: none; }
+.cal-day.today { border-color: #378ADD; background: #f0f7ff; }
+.day-num { font-size: 11px; color: #aaa; margin-bottom: 2px; font-weight: 500; }
+.cal-day.today .day-num { color: #378ADD; }
+.ev-chip { font-size: 10px; padding: 2px 5px; border-radius: 3px; margin-bottom: 2px; line-height: 1.35; word-break: break-word; cursor: default; }
+
+/* Event type chip colours — add a matching entry in CONFIG.eventTypes for each new class */
+.chip-tasks      { background: #E6F1FB; color: #185FA5; }
+.chip-strategy   { background: #EEEDFE; color: #3C3489; }
+.chip-gametime   { background: #EAF3DE; color: #3B6D11; }
+.chip-lesson     { background: #E1F5EE; color: #0F6E56; }
+.chip-tournament { background: #FAEEDA; color: #854F0B; }
+
+/* Digest */
+.platform-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; padding: 3px 9px; border-radius: 4px; margin-bottom: 8px; }
+.badge-tg    { background: #E6F1FB; color: #185FA5; }
+.badge-slack { background: #EEEDFE; color: #3C3489; }
+.digest-box { border: 1px solid #e5e5e0; border-radius: 10px; padding: 1rem 1.25rem; background: #fff; font-size: 13px; line-height: 1.85; font-family: 'SF Mono', 'Fira Mono', monospace; color: #1a1a1a; white-space: pre-wrap; word-break: break-all; }
+.copy-txt-btn { margin-top: 8px; padding: 6px 14px; border: 1px solid #ccc; border-radius: 7px; background: #fff; cursor: pointer; font-size: 12px; color: #666; }
+.copy-txt-btn:hover { background: #f5f5f0; }
+.copy-png-btn { border-color: #aaa; color: #333; }
+.copy-png-btn:disabled { opacity: .55; cursor: default; }
+
+.hint { font-size: 12px; color: #aaa; margin-top: 6px; }
