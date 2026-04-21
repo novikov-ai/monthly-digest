@@ -54,9 +54,8 @@ select:focus, input:focus { outline: none; border-color: #888; }
 .tab.active { background: #f0f0f0; color: #1a1a1a; font-weight: 500; }
 
 /* ── Calendar output ─────────────────────────────────────────────────────── */
-.cal-outer-wrap { width: 100%; }
 
-/* Dark card — the main design statement */
+/* Dark card — title, grid and description live inside as one unit */
 .cal-wrap {
   background: #1c1c1e;
   border: none;
@@ -82,6 +81,7 @@ select:focus, input:focus { outline: none; border-color: #888; }
   background: rgba(255,255,255,.05); border: none;
 }
 .cal-day.empty { background: none; }
+.cal-day.weekend { background: rgba(255,255,255,.09); }
 .cal-day.today {
   background: rgba(255,149,0,.15);
   box-shadow: inset 0 0 0 1.5px rgba(255,149,0,.55);
@@ -129,15 +129,17 @@ textarea {
 }
 textarea:focus { outline: none; border-color: #888; }
 
-/* Calendar output: outer title and description */
-.cal-outer-title {
-  font-size: 32px; font-weight: 200; letter-spacing: -.8px;
-  color: #1d1d1f; margin-bottom: 20px; line-height: 1.1;
+/* Title and description — inside the dark card */
+.cal-inner-title {
+  font-size: 26px; font-weight: 200; letter-spacing: -.5px;
+  color: rgba(255,255,255,.92); line-height: 1.1;
+  margin-bottom: 20px;
 }
-.cal-outer-desc {
-  margin-top: 14px; padding: 16px 20px;
-  background: rgba(0,0,0,.04); border-radius: 14px;
-  font-size: 13px; color: #6e6e73; line-height: 1.7;
+.cal-inner-desc {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255,255,255,.1);
+  font-size: 13px; color: rgba(255,255,255,.42); line-height: 1.7;
 }
 
 .hint { font-size: 12px; color: #aaa; margin-top: 6px; }

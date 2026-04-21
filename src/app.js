@@ -256,14 +256,16 @@ function renderCalendar(yr, mo, allEvents) {
   const td    = new Date();
   const title = CONFIG.calendarTitle(MONTHS_RU[mo - 1], yr);
   const desc  = calendarDescription.trim();
-  let h = `<div class="cal-outer-wrap">` +
-          `<div class="cal-outer-title">${esc(title)}</div>` +
-          `<div class="cal-wrap"><div class="calendar-grid">`;
+  let h = `<div class="cal-wrap">` +
+          `<div class="cal-inner-title">${esc(title)}</div>` +
+          `<div class="calendar-grid">`;
   DAYS_CAL.forEach(d => h += `<div class="cal-header">${d}</div>`);
   for (let i = 0; i < offset; i++) h += `<div class="cal-day empty"></div>`;
   for (let d = 1; d <= lastDay; d++) {
-    const isToday = td.getFullYear() === yr && td.getMonth() === mo - 1 && td.getDate() === d;
-    h += `<div class="cal-day${isToday ? ' today' : ''}"><div class="day-num">${d}</div>`;
+    const isToday   = td.getFullYear() === yr && td.getMonth() === mo - 1 && td.getDate() === d;
+    const isWeekend = (d - 1 + offset) % 7 >= 5;
+    const cls = ['cal-day', isToday ? 'today' : '', isWeekend ? 'weekend' : ''].filter(Boolean).join(' ');
+    h += `<div class="${cls}"><div class="day-num">${d}</div>`;
     (byDay[d] || []).forEach(e => {
       const t  = CONFIG.eventTypes[e.type] || CONFIG.eventTypes[Object.keys(CONFIG.eventTypes)[0]];
       const tr = timeRange(e.time, e.duration);
@@ -271,13 +273,11 @@ function renderCalendar(yr, mo, allEvents) {
     });
     h += `</div>`;
   }
-  h += `</div></div>`;
-  const descHtml = desc
-    ? `<div class="cal-outer-desc">${esc(desc).replace(/\n/g, '<br>')}</div>`
-    : '';
-  document.getElementById('tab-cal').innerHTML = h + descHtml +
-    `</div>` +
-    `<button class="copy-txt-btn copy-png-btn" style="margin-top:12px" onclick="copyCalendarPng(this)">Скопировать PNG</button>`;
+  h += `</div>`;
+  if (desc) h += `<div class="cal-inner-desc">${esc(desc).replace(/\n/g, '<br>')}</div>`;
+  h += `</div>`;
+  document.getElementById('tab-cal').innerHTML = h +
+    `<button class="copy-txt-btn copy-png-btn" style="margin-top:14px" onclick="copyCalendarPng(this)">Скопировать PNG</button>`;
 }
 
 // ── Canvas-based PNG export ───────────────────────────────────────────────────
@@ -311,22 +311,24 @@ function roundRect(ctx, x, y, w, h, r, fill, stroke) {
   if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke(); }
 }
 
-/** Splits text into lines that fit within maxWidth. */
+/** Splits text into lines that fit within maxWidth, respecting \n. */
 function wrapText(ctx, text, maxWidth) {
-  const words = text.split(' ');
-  const lines = [];
-  let line = '';
-  for (const word of words) {
-    const candidate = line ? line + ' ' + word : word;
-    if (ctx.measureText(candidate).width > maxWidth && line) {
-      lines.push(line);
-      line = word;
-    } else {
-      line = candidate;
+  const result = [];
+  for (const paragraph of text.split('\n')) {
+    const words = paragraph.split(' ');
+    let line = '';
+    for (const word of words) {
+      const candidate = line ? line + ' ' + word : word;
+      if (ctx.measureText(candidate).width > maxWidth && line) {
+        result.push(line);
+        line = word;
+      } else {
+        line = candidate;
+      }
     }
+    result.push(line);
   }
-  if (line) lines.push(line);
-  return lines.length ? lines : [''];
+  return result.length ? result : [''];
 }
 
 function buildCalendarCanvas(ym, allEvents, calWrapWidth, description) {
@@ -340,16 +342,17 @@ function buildCalendarCanvas(ym, allEvents, calWrapWidth, description) {
   const CELL_W   = Math.floor((calWrapWidth - WRAP_PAD * 2 - GAP * 6) / 7);
   const GRID_W   = CELL_W * 7 + GAP * 6;
 
-  const CARD_BG   = '#1c1c1e';
-  const CELL_BG   = 'rgba(255,255,255,0.05)';
-  const PAD       = 32;
-  const CARD_PAD  = 24;  // inner padding of the dark card
-  const TITLE_H   = 52;  // outer title height
-  const HDR_H     = 36;  // weekday header row inside card
-  const DHEAD     = 0;   // merged into HDR_H
+  const CARD_BG         = '#1c1c1e';
+  const CELL_BG         = 'rgba(255,255,255,0.05)';
+  const CELL_WEEKEND_BG = 'rgba(255,255,255,0.09)';
+  const PAD            = 32;
+  const CARD_PAD       = 24;
+  const INNER_TITLE_H  = 40;  // title line height inside card
+  const TITLE_MB       = 20;  // margin below title before weekday headers
+  const HDR_H          = 34;  // weekday header row
   const FONT      = '"Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif';
-  const CHIP_FONT = `10px ${FONT}`;
-  const TEXT_W    = CELL_W - 10; // usable text width inside chip
+  const CHIP_FONT = `500 10.5px ${FONT}`;
+  const TEXT_W    = CELL_W - 28; // matches CSS: 7px cell-padding + 7px chip-padding each side
   const LINE_H    = 13;          // px per text line inside chip
   const CHIP_VPAD = 3;           // top/bottom padding inside chip
   const CHIP_GAP  = 2;           // gap between chips
@@ -404,12 +407,17 @@ function buildCalendarCanvas(ym, allEvents, calWrapWidth, description) {
   const descLines   = description
     ? (() => { measureCtx.font = DESC_FONT; return wrapText(measureCtx, description, GRID_W - DESC_PAD * 2); })()
     : [];
-  const descBlockH  = descLines.length ? descLines.length * DESC_LINE_H + DESC_PAD * 2 + 8 : 0;
+  // Description inside card: separator (1px) + spacing + text lines + bottom card pad
+  const descInCardH = descLines.length
+    ? 16 + 1 + 14 + descLines.length * DESC_LINE_H + CARD_PAD
+    : CARD_PAD;
 
-  const CARD_W = GRID_W + CARD_PAD * 2;
-  const CARD_H = HDR_H + gridH + CARD_PAD;
-  const TW = PAD + CARD_W + PAD;
-  const TH = PAD + TITLE_H + CARD_H + descBlockH + PAD;
+  // CARD_TOP = distance from cardY to first cell row
+  const CARD_TOP = CARD_PAD + INNER_TITLE_H + TITLE_MB + HDR_H;
+  const CARD_W   = GRID_W + CARD_PAD * 2;
+  const CARD_H   = CARD_TOP + gridH + descInCardH;
+  const TW       = PAD + CARD_W + PAD;
+  const TH       = PAD + CARD_H + PAD;
 
   // ── Draw ──────────────────────────────────────────────────────────────────
   const canvas = document.createElement('canvas');
@@ -418,34 +426,34 @@ function buildCalendarCanvas(ym, allEvents, calWrapWidth, description) {
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
 
-  // Outer background — near-white Apple grey
+  // Outer background
   ctx.fillStyle = '#f5f5f7';
   ctx.fillRect(0, 0, TW, TH);
 
-  // Outer title — ultra-light, large
-  ctx.font         = `200 32px ${FONT}`;
-  ctx.fillStyle    = '#1d1d1f';
-  ctx.textAlign    = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(CONFIG.calendarTitle(MONTHS_RU[mo - 1], yr), PAD, PAD + TITLE_H / 2);
+  const cardY = PAD;
 
-  const cardY = PAD + TITLE_H;
-
-  // Dark card with dramatic shadow
+  // Dark card — one unified block, dramatic shadow
   ctx.shadowColor   = 'rgba(0,0,0,0.28)';
   ctx.shadowBlur    = 64;
   ctx.shadowOffsetY = 12;
   roundRect(ctx, PAD, cardY, CARD_W, CARD_H, 24, CARD_BG, null);
   ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
 
-  // Weekday headers inside card — dim white, uppercase
+  // Title inside card — ultra-light white
+  ctx.font         = `200 26px ${FONT}`;
+  ctx.fillStyle    = 'rgba(255,255,255,0.92)';
+  ctx.textAlign    = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(CONFIG.calendarTitle(MONTHS_RU[mo - 1], yr), PAD + CARD_PAD, cardY + CARD_PAD + INNER_TITLE_H / 2);
+
+  // Weekday headers — dim white, uppercase
   ctx.font         = `700 10px ${FONT}`;
   ctx.fillStyle    = 'rgba(255,255,255,0.28)';
   ctx.textBaseline = 'middle';
   DAYS_CAL.forEach((label, i) => {
     ctx.textAlign = 'center';
     const hx = PAD + CARD_PAD + i * (CELL_W + GAP) + CELL_W / 2;
-    ctx.fillText(label.toUpperCase(), hx, cardY + HDR_H / 2);
+    ctx.fillText(label.toUpperCase(), hx, cardY + CARD_PAD + INNER_TITLE_H + TITLE_MB + HDR_H / 2);
   });
 
   // Day cells
@@ -456,9 +464,10 @@ function buildCalendarCanvas(ym, allEvents, calWrapWidth, description) {
     const col     = idx % 7;
     const ri      = Math.floor(idx / 7);
     const x       = PAD + CARD_PAD + col * (CELL_W + GAP);
-    const y       = cardY + HDR_H + rowY[ri];
+    const y       = cardY + CARD_TOP + rowY[ri];
     const CELL_H  = rowH[ri];
-    const isToday = today.getFullYear() === yr && today.getMonth() === mo - 1 && today.getDate() === d;
+    const isToday   = today.getFullYear() === yr && today.getMonth() === mo - 1 && today.getDate() === d;
+    const isWeekend = col >= 5;
 
     // Cell background — translucent on dark card
     if (isToday) {
@@ -471,7 +480,7 @@ function buildCalendarCanvas(ym, allEvents, calWrapWidth, description) {
       ctx.stroke();
       ctx.restore();
     } else {
-      roundRect(ctx, x + 1, y + 1, CELL_W - 2, CELL_H - 2, 14, CELL_BG, null);
+      roundRect(ctx, x + 1, y + 1, CELL_W - 2, CELL_H - 2, 14, isWeekend ? CELL_WEEKEND_BG : CELL_BG, null);
     }
 
     // Day number — filled orange circle on today
@@ -498,34 +507,40 @@ function buildCalendarCanvas(ym, allEvents, calWrapWidth, description) {
       const label  = `${timeRange(e.time, e.duration)} ${e.name || t.label}`;
 
       ctx.font = CHIP_FONT;
-      const lines = wrapText(ctx, label, TEXT_W - 4); // -4 for left accent bar
+      const lines = wrapText(ctx, label, TEXT_W);
       const chipH = lines.length * LINE_H + CHIP_VPAD * 2;
 
       // Chip: vivid translucent fill, light text — glowing on dark
-      roundRect(ctx, x + 4, chipTop, CELL_W - 8, chipH, 6, colors.bg, null);
+      roundRect(ctx, x + 7, chipTop, CELL_W - 14, chipH, 6, colors.bg, null);
 
       ctx.font         = CHIP_FONT;
       ctx.fillStyle    = colors.fg;
       ctx.textAlign    = 'left';
       ctx.textBaseline = 'top';
       lines.forEach((ln, li) => {
-        ctx.fillText(ln, x + 8, chipTop + CHIP_VPAD + li * LINE_H);
+        ctx.fillText(ln, x + 14, chipTop + CHIP_VPAD + li * LINE_H);
       });
 
       chipTop += chipH + CHIP_GAP;
     }
   }
 
-  // Description block below the card
+  // Description inside card — separator line then dimmed text
   if (descLines.length) {
-    const descY = cardY + CARD_H + 12;
-    roundRect(ctx, PAD, descY, CARD_W, descBlockH - 12, 14, 'rgba(0,0,0,0.05)', null);
+    const sepY  = cardY + CARD_TOP + gridH + 16;
+    const textY = sepY + 1 + 14; // 1px separator + 14px gap
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    ctx.lineWidth   = 1;
+    ctx.beginPath();
+    ctx.moveTo(PAD + CARD_PAD, sepY);
+    ctx.lineTo(PAD + CARD_PAD + GRID_W, sepY);
+    ctx.stroke();
     ctx.font         = DESC_FONT;
-    ctx.fillStyle    = '#6e6e73';
+    ctx.fillStyle    = 'rgba(255,255,255,0.42)';
     ctx.textAlign    = 'left';
     ctx.textBaseline = 'top';
     descLines.forEach((ln, li) => {
-      ctx.fillText(ln, PAD + DESC_PAD, descY + DESC_PAD + li * DESC_LINE_H);
+      ctx.fillText(ln, PAD + CARD_PAD, textY + li * DESC_LINE_H);
     });
   }
 
