@@ -345,7 +345,7 @@ function buildCalendarCanvas(ym, allEvents, calWrapWidth, description) {
   const CARD_BG         = '#1c1c1e';
   const CELL_BG         = 'rgba(255,255,255,0.05)';
   const CELL_WEEKEND_BG = 'rgba(255,255,255,0.09)';
-  const PAD            = 32;
+  const PAD            = 0;
   const CARD_PAD       = 24;
   const INNER_TITLE_H  = 40;  // title line height inside card
   const TITLE_MB       = 20;  // margin below title before weekday headers
@@ -426,18 +426,15 @@ function buildCalendarCanvas(ym, allEvents, calWrapWidth, description) {
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
 
-  // Outer background
-  ctx.fillStyle = '#f5f5f7';
+  // Dark background — fills entire canvas
+  ctx.fillStyle = CARD_BG;
   ctx.fillRect(0, 0, TW, TH);
 
   const cardY = PAD;
 
-  // Dark card — one unified block, dramatic shadow
-  ctx.shadowColor   = 'rgba(0,0,0,0.28)';
-  ctx.shadowBlur    = 64;
-  ctx.shadowOffsetY = 12;
-  roundRect(ctx, PAD, cardY, CARD_W, CARD_H, 24, CARD_BG, null);
-  ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+  // Card — same colour as background, no shadow needed
+  ctx.fillStyle = CARD_BG;
+  ctx.fillRect(PAD, cardY, CARD_W, CARD_H);
 
   // Title inside card — ultra-light white
   ctx.font         = `200 26px ${FONT}`;
